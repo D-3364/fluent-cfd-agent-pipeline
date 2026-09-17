@@ -1,0 +1,441 @@
+# 审查判据
+
+给 **cfd-reviewer** 用的阈值表。每条都带官方出处，引用时写出条目名。
+
+> **使用原则**：找不到依据的判断，写进 `cannot_verify`，不要凭印象下定论。
+> **§0** 列了可引用的官方来源；那里没有覆盖的问题，用 `curl` 去查官方文档
+> （WebFetch 在本环境被拦截）。
+
+---
+
+## 0. 引用来源与可信度分级
+
+| 级别 | 来源 | 用法 |
+|---|---|---|
+| **A** | Fluent User's Guide v261 · `https://ansyshelp.ansys.com/public/Views/Secured/corp/v261/en/flu_ug/flu_ug.html` | 声称"手册说 X"时引用这个入口 |
+| **A** | Fluent Theory Guide v261 · `https://ansyshelp.ansys.com/public/Views/Secured/corp/v261/en/flu_th/flu_th.html` | 同上 |
+| **A** | Ansys Student 许可限制 · `https://www.ansys.com/academic/students/ansys-student` | 许可相关的唯一权威 |
+| **B** | FLUENT 12.0 UG 镜像（ENEA 意大利国家机构） · `https://www.afs.enea.it/project/neptunius/docs/fluent/html/ug/` | **用于逐字引述**。数字至今沿用，但这是 12.0 的章节号，章号与现代手册不同 |
+
+> ⚠️ **不要引用** `.../corp/v26X/en/pdf/Fluent_Users_Guide.pdf`（404），也不要引用
+> 任何 `ansyshelp.ansys.com/account/secured?...` 形式的链接——后者会返回登录壳页面，
+> `curl` 下来 grep 不到内容，**容易被误读成"手册没写这条"**。用带 `/public/` 的路径。
+
+---
+
+## 1. ANSYS Student 许可限制 ★ 第一道硬约束
+
+本机是 **ANSYS Student 2026 R1**。据官方许可页：
+
+| 项 | 限制 |
+|---|---|
+| **流体物理（Fluent）** | **100 万单元/节点** |
+| **HPC** | **最多 4 个 CPU 核**；GPU 上限 40 SM |
+| 结构 | 128K 节点/单元 |
+
+### 两个必须记住的点
+
+**① 超限是硬中止，不是静默截断。**
+超限时报 *"Your product license has numerical problem size limits, you have exceeded
+these problem size limits and the solver cannot proceed."* 然后**直接退出**。
+
+**推论**：如果结果文件存在，说明网格当时就在上限内。所以审查者不必怀疑"结果是不是
+悄悄用了缩水的网格"。
+
+**② 但真正的风险恰恰在这里。**
+既然超限会中止，用户就**有动机把网格改粗以塞进限制**——这会破坏网格无关性，
+而且**不会留下任何报错痕迹**。
+
+**所以审查的正确靶子是：有没有做过网格无关性验证，而不只是查单元数。**
+
+- 单元数 ≥ 1e6 → 标为"本机不可能跑出来"，`escalate`
+- 单元数远小于同类问题的常规规模，且无网格无关性说明 → 记为 `cannot_verify`
+  或 `minor` finding
+- 声称用了 >4 核 → 来源可疑，本许可跑不出来
+
+> ⚠️ 网上常见的 **512,000** 是旧版 Student 的数字。当前官方页面写的是流体 **100 万**。
+> **不要硬编码 512K。**
+
+> ⚠️ 不要断言"并行 UDF 被禁用"——该页面把限制表述为**核数上限**，没有说并行 UDF
+> 是硬开关。没有 v261 专项来源就别下这个结论。
+
+---
+
+## 2. 网格质量
+
+来源：Fluent UG §6.2.2「Mesh Quality」（镜像 `.../ug/node167.htm`）
+
+| 指标 | 阈值 | 含义 |
+|---|---|---|
+| **最大偏斜度**（三角/四面体） | **< 0.95** | 超过可能收敛困难 |
+| 平均偏斜度 | < 0.33 | |
+| **最大 cell squish** | < 0.99 | |
+| **长宽比（主流区）** | **< 5:1** | 远离壁面处 |
+| 长宽比（边界层四边形/六面体/楔形） | 可达 **10:1** | 多数情况下可接受 |
+| 长宽比（有能量方程时） | **< 35:1** | 稳定性要求 |
+| 每流道最少单元数 | ≥ 5 | |
+
+### ⚠️ 两个偏斜度阈值，含义不同，不要合并
+
+| 值 | 来源 | 严重性 |
+|---|---|---|
+| **0.95** | UG §6.2.2 | **建议性**："可能收敛困难，可调求解器控制" |
+| **0.98** | UG §26.17.1 的 Case Check 弹窗 | Fluent **自己的告警线**，接近硬性 |
+
+**判定规则**：最大偏斜度 > 0.98 → **fail**；0.95–0.98 → 标记为可疑。
+
+### 正交质量
+
+- UG 原文：*"The minimum orthogonal quality for all types of cells should be more than **0.01**"*
+- Ansys 工程实践建议 **> 0.1**，称 **0.2** 为"可以放心算"
+
+### ⚠️ 不要编造"按求解器区分"的网格质量阈值
+
+常有人声称"密度基要求 OQ > 0.1，压力基 > 0.01"——**查不到任何 ANSYS 官方来源**
+支持这个区分。手册里实际写的是**控制手段的差异**，不是阈值差异：高偏斜度（>0.95）时
+*"降低松弛因子和/或切换到压力基耦合求解器"*。
+
+**把 0.1/0.01 的划分当作官方阈值来引用，等于伪造出处。**
+正确做法：以 **0.01 为官方底线、0.1 为最佳实践**，把求解器选择当作**缓解措施**记一笔。
+
+### ⚠️ `mesh.check()` ≠ 网格质量
+
+这是两个不同的按钮，**必须都调**：
+
+| 操作 | 报告什么 |
+|---|---|
+| **Check**（§6.5/§6.5.1） | 域范围、体积统计、面面积统计、拓扑审计（每个单元的面数/节点数等） |
+| **Report Quality** | 偏斜度、正交质量、长宽比 |
+
+Check 的明确失败条件：*"A **negative value for the minimum volume** indicates that one
+or more cells have improper connectivity… You **must eliminate these negative volumes
+before continuing**"*（负体积必须消除）。
+
+拓扑审计的合理性标准：2D 三角形 3 面/3 节点，3D 四面体 4 面/4 节点，
+2D 四边形 4 面/4 节点，3D 六面体 6 面/8 节点——不符即为缺陷。
+
+**所以"mesh.check 通过了所以质量没问题"是错的推理。** 两者都要报。
+
+### ⚠️ 长宽比的定义坑
+
+Fluent 手册里的长宽比定义下，**单位立方体的长宽比是 1.732，不是 1.0**。
+**不要把 1.73 当成异常值报出来。**
+
+---
+
+## 3. 收敛判据
+
+来源：UG §26.18.1「Judging Convergence」（`.../ug/node833.htm`）
+
+### 默认判据
+
+| 方程 | 默认残差目标 |
+|---|---|
+| 连续性、动量、k、ε/ω | **1e-3** |
+| 能量、P-1 辐射 | **1e-6** |
+
+替代判据：**未缩放残差下降三个数量级**。
+
+### ⚠️ 判断"残差平了"之前，先看精度设置
+
+UG §26.13.1：*"**单精度**计算的残差降到约 **6 个数量级**就会碰到舍入误差；
+**双精度**可降 **12 个数量级**。"*
+
+**所以必须先查求解器的 precision 设置**：单精度跑到 1e-6 就平了，可能是在舍入误差
+附近震荡，**而不是没收敛**。不查精度就判"未收敛"是误判。
+
+### 「残差平了但没到阈值」——什么时候可以接受
+
+手册明确列出了合法情形，**但都有前提**：
+
+1. **初值好** → 初始连续性残差本就很小，缩放后反而变大。此时应看**未缩放**残差，
+   拿**入口质量流量**做参照
+2. **湍流方程** → 初值差时缩放因子大，残差会先升后降
+3. **变量本身接近零**（如充分发展管流的横向速度）→ 初始残差≈0，是很差的标尺，
+   自然降不了三个数量级
+4. **源项逐步建立**（如封闭腔内自然对流）→ 动量残差初始接近零，标尺不成立
+
+**判定门槛（手册原文）**：*"ensure that the residual continues to decrease
+(**or remain low**) for **several iterations (say 50 or more**)"*
+
+**规则**：
+- 残差平/低 **必须持续 ≥50 次迭代**，**且**
+- **必须有独立的积分量监测也停止变化**
+
+**只有残差平，永远不足以判定收敛。** 情形 3 和 4 正是"平了但对"与"平了但错"的分界。
+
+### ★ 用监测量而不是残差
+
+手册开篇即说：*"There are **no universal metrics** for judging convergence…
+judge convergence not only by examining residual levels, but also by **monitoring
+relevant integrated quantities such as drag or heat transfer coefficient**."*
+
+### ★ 质量/能量不平衡 —— 最硬的一条
+
+| 阈值 | 判定 |
+|---|---|
+| **< 0.5%** | 通过 |
+| 0.5% – 1% | 勉强，应要求收紧残差并继续迭代 |
+| **> 1%** | **不通过**，无论残差图多好看 |
+
+基准是**最小边界通量**：净不平衡应小于域边界上最小通量的 1%（Ansys 教程给的是
+*"for example, 0.5%"* 的常用值）。
+
+手册原文：不平衡显著时 *"you should **decrease the residual tolerances by at least an
+order of magnitude** and continue iterating."*
+
+**这是与残差同等地位的独立判据，审查时必须算。**
+
+#### ★★ 能量守恒：稳态与瞬态形式不同，别用错
+
+**这个坑已经造成过一次完整的回退。**
+
+先记住一个语义事实：
+
+> **Fluent 报的 `Total Heat Transfer Rate` 是相对 298.15 K 参考温度的焓通量**
+> `ṁ · cp · (T − 298.15 K)`，**不是**相对于某个自然零点的能量率。
+
+对绝热边界求和时：
+
+```
+稳态：  Σ_i Φ_i  =  0
+瞬态：  Σ_i Φ_i  =  储能率 dE/dt  =  ρ · cp · V · dT_volavg/dt   ≠ 0
+```
+
+**稳态只是 storage → 0 的特例。** 据此写出通式：
+
+```
+                 | Σ_i Φ_i − ρ·cp·V·dT_volavg/dt |
+     瞬态：      ────────────────────────────────  <  0.5%
+                            Ḣ_in
+
+                 | Σ_i Φ_i |
+     稳态：      ───────────  <  0.5%
+                    Ḣ_in
+```
+
+> ❌ **实例**：某瞬态算例（冷态起步、0.4 s 内仍在被填充）的判据写成稳态形式
+> `|ΣΦ| / Ḣ_in < 0.5%`，按字面实测 **11.65%** —— 物理上不可能达成。
+> 补上储能项后闭合到 **1.16e-5 %**。
+>
+> 代价：一次完整的 `route=spec` 回退 + 重走人工关卡。
+
+**审查动作**：
+1. 若算例是瞬态而判据是稳态形式 → **直接判 `blocking`**，归 `spec` 路由
+2. 算储能项时注意 `T_volavg` 要用**体平均温度**，不是出口温度
+3. 核对参考温度是否为 298.15 K，不是的话 `Φ` 需要换算
+
+#### 求和时必须排除 interior zone
+
+对 flux 报表求和**只能取真实边界面**。把 `interior-*` 之类的内部面算进去会让
+正负相消，**Net 恒为 0，判据彻底失去鉴别力**。
+
+审查时若看到"不平衡恰好是 0.00%"，先怀疑是不是把内部面算进去了。
+
+---
+
+## 4. y+ 要求（按湍流模型）
+
+来源：UG §12.3.1「Near-Wall Mesh Guidelines」（`.../ug/node410.htm`）
+
+### 壁面函数法（标准/非平衡壁面函数，配 k-ε、RSM）
+
+- 壁面相邻单元中心应在对数律层：**30 < y+ < 300**
+- **y+ 接近下界 30 最理想**
+- 手册明确：*"the conventional wall functions can be used with fine near-wall meshes
+  of **[y+ < 15]**, ideally their use should be avoided… can considerably reduce the
+  accuracy of the calculation and **cause convergence problems**"*
+- ★ **缓冲层禁令**：*"the mesh should be made either coarse or fine enough to
+  **prevent the wall-adjacent cells from being placed in the buffer layer ([5 < y+ < 30])**"*
+
+### 增强壁面处理（EWT）
+
+- y+ **≈ 1** 最理想；稍高也可以，**只要稳在粘性底层内（y+ = 1~5）**
+- 粘性影响区（Re_y < 200）内应有**至少 10 层单元**
+
+### Spalart-Allmaras
+
+完整实现是低雷诺数模型。手册总结规则：
+**要么很细（y+ ≈ 1），要么粗到 y+ > 30**，不要卡在中间。
+
+### k-ω 族
+
+与 EWT 同样的网格指导。启用 **Low-Re Corrections** 时应做到 **y+ ≈ 1**。
+
+> ★ **SST 的隐蔽失效**：现代 Fluent 的 SST 靠 F1 混合函数做自动壁面处理，
+> **对 y+ 不敏感**——所以 y+ ≈ 30 时 SST **能跑**，但近壁自动退化成类 k-ε 行为，
+> **你选 SST 想要的近壁精度就没了**。
+> 判据：**在分离/传热是关键的壁面上，SST 配 y+ > 5 应标记为
+> "模型选择未兑现其优势"**。
+
+### 转捩模型（k-kl-ω / γ-Re_θ）
+
+需要低 Re 网格 + 足够的流向分辨率。层流分离区还需额外加密。
+**入口湍流衰减必须事先估算**，否则转捩位置预测不可信。
+
+**判据**：转捩结果只有在 **y+ ≈ 1** **且**有入口湍流衰减估算时才可信。
+
+### LES
+
+近壁网格无硬性计算限制，但最佳实践仍是 **y+ ≈ 1**。
+
+### ★ 缓冲层失效模式与补救
+
+y+ 落在 **5–30**（尤其 **y+ ≈ 11.2** 这个"魔数"）是最糟的位置：
+对壁面函数太细（y+ < 15 时精度显著下降），对解出粘性底层又太粗。
+
+**Ansys 官方给的补救，按手册推荐顺序**：
+
+1. **把首层加粗到 y+ > 30**，继续用壁面函数
+2. **加密到 y+ < 5**，改用增强壁面处理
+3. **用可缩放壁面函数**（Scalable Wall Functions）——把限制器换成
+   `y* = max(y*, y*_limit)`，`y*_limit = 11.06`，结果对网格加密不敏感
+
+**判定规则**：
+- 承载关键物理的壁面上，**面积加权平均 y+ 落在 5–30** → **fail**
+- **仅个别单元的最大 y+ 落在缓冲区** → 记 note，不算 fail
+
+**怎么读**：`Results → Surface Integrals → Turbulence… → Wall Yplus`，
+同时看 Facet Maximum 和 Area-Weighted Average。
+
+#### ★★ 判定前必须先问一句："近壁量是不是交付项？"
+
+"落在 5–30 → fail"这条规则若按字面绝对执行，某些情形下会给出错误判断。
+实际遇到过这种情形：
+
+- 壁面面积加权平均 y+ = **16.48**，正落在 5–30 中部 → **按本条字面应判 fail**
+- 但审查者维持 **minor**，理由三条：
+  1. y+ **不是任何一条验收判据**（13 条里没有一条提到 y+）
+  2. **全部壁面绝热**，近壁热流为 0，而 SST 近壁精度主要影响的是**壁面传热量** —— 不是交付项
+  3. 交付物是**体场**（压力/速度/温度云图），由宏观对流与湍流扩散主导
+
+**那次判断是对的。但它要求审查者去推翻文档白纸黑字写的规则 —— 换一个更死板的
+审查者就会误判，而且是两个方向的误判都可能：盲判 fail（浪费一轮回退），
+或盲判 pass（放过真问题）。**
+
+**修正后的判定流程**：
+
+```
+y+ 面积加权平均落在 5–30（SST 则 > 5）
+  │
+  ├─ 近壁量【是】交付项？  （判据里提到 y+/壁面热流/壁面剪应力/分离位置 → 是）
+  │     → fail，归 spec 路由（网格给不出该模型要的 y+，是模型选择的错）
+  │
+  └─ 近壁量【不是】交付项？（全部壁面绝热、交付体场、判据不提近壁量）
+        → minor，不退回；但【必须登记残余风险】，说明：
+          · 该 y+ 下近壁剪切层/分层界面厚度仍受影响
+          · 要用壁面分辨结果必须重建网格（近壁加密约 25 倍）
+          · 此折中已由人工关卡拍板接受
+```
+
+**关键**：判 `minor` 时**不能把它说成"没问题"**。残余风险要如实登记，
+并由人工关卡确认接受 —— 那次运行的规范确实在 `rationale` 与 `open_questions`
+里如实披露了，这是正确做法。
+
+> ⚠️ **不要因为这条修正就放宽判定**：真正的错误是"模型选择与网格不匹配且
+> **近壁量是交付项**"。那种情况仍然判 fail。
+
+---
+
+## 5. 松弛因子、Courant 数、发散信号
+
+### 压力基分离式：默认值与补救
+
+来源：UG §26.3.2（`.../ug/node786.htm`）
+
+默认：压力 **0.3**，动量 **0.7**，k **0.8**，ε **0.8**，能量 **1.0**。
+
+手册明确：默认值 *"set to values that are near optimal for the largest possible
+number of cases"*。**不要因为"没改默认值"就报问题。**
+
+出问题时的官方处方（原文）：
+
+> *"If unstable or divergent behavior is observed… you need to reduce the
+> under-relaxation factors for **pressure, momentum, k, and ε** from their default
+> values to **about 0.2, 0.5, 0.5, and 0.5**."*
+
+> *"If the residuals continue to increase **after the first 4 or 5 iterations**,
+> you should reduce the under-relaxation factors."*
+
+其他标量（旋流、组分、混合分数及方差）降到 **0.8**。
+
+**两条补充警告**：
+
+- *"If the residuals **jump by a few orders of magnitude**, you should consider
+  **halting the calculation and returning to the last good data file**."*
+- 耦合算法下：*"you will need to **increase** the relaxation factors for these
+  [turbulence] equations to a value **greater than the default**"*
+  → **耦合求解保持默认 0.75–0.8 的湍流 URF 往往只是慢，不是错。**
+
+### SIMPLEC / PISO
+
+来源：UG §26.3.1（`.../ug/node785.htm`）
+
+- SIMPLEC 的压力修正 URF 一般设 **1.0**；但*"in some problems… can lead to
+  instability due to **high mesh skewness**"* → 退回 **0.7** 或改用 SIMPLE
+- PISO（无邻域修正）：动量和压力 URF **之和为 1**（如压力 0.3 / 动量 0.7）
+- PISO（有邻域修正）：URF 取 1.0
+
+### 密度基 Courant 数
+
+来源：UG §26.4.1（`.../ug/node789.htm`）
+
+| 格式 | 稳定上限 | 默认 | 备注 |
+|---|---|---|---|
+| **显式** | CFL ≤ **2.5** | **1.0** | 一般**不要超过 2.0** |
+| **隐式** | 线性理论无条件稳定 | **5.0** | 常可提到 10/20/100 甚至更高 |
+
+发散时的官方建议：*"if residuals are rising very rapidly… this is usually a good
+sign that the **Courant number needs to be lowered**"*，严重时降到 **0.1~0.5** 起步。
+
+**自动降 CFL 的指纹**：耦合 AMG 求解器会检测多重网格发散并**自动降 CFL 重算**，
+最多试 **5 次**，成功后恢复原值。
+→ **日志里反复出现降 CFL 的提示，是收敛挣扎的指纹。**
+
+### ⚠️ 压力基耦合的 Courant 数不是 CFL 条件
+
+压力基 + 耦合格式做稳态时，Courant Number 是用来**稳定收敛的**参数，默认 **200**
+（旧版 100），复杂物理（多相、燃烧）建议降到 **10–50**。
+
+**不要把"压力基耦合稳态里 Courant=200"当成显式求解器的稳定性违规来报。**
+
+### 发散/未收敛信号清单
+
+1. **残差快速上升或跳几个数量级** → 手册明确的发散信号
+2. **压力出口出现回流** → Fluent 打印
+   `Reversed flow on N faces (X% area) of pressure-outlet`
+   - 这是**警告不是错误**，启动阶段常见
+   - **成为审查发现的判据**：**持续到最终迭代**，或**回流面积占比很大**
+   - 原因（手册）：*"virtually impossible to prescribe correct values for the varying
+     turbulence, temperature, and species concentrations in backflow cells"*；
+     回流单元数逐迭代变化、出入流单元间断会损害收敛
+   - 补救：把出口往下游移/拉伸，或给出物理合理的回流总温、湍流强度、水力直径
+   - ⚠️ 该警告可用 `solve/set/flow-warnings no` 关掉。
+     **日志里没有这条警告时，要留意是不是被关掉了**——关掉等于藏起这个信号
+3. **质量不平衡 > 1%** → 手册称其*"clearly indicates the solution is not yet
+   converged"*
+4. **单精度舍入平台** → 先查精度，见 §3
+5. **出口设在回流区里** → 是 2 的根因
+
+---
+
+## 6. 判据速查卡
+
+审查时对着这张表逐条过：
+
+| 检查项 | 通过 | 存疑 | 不通过 |
+|---|---|---|---|
+| 单元数 | < 1e6 | — | ≥ 1e6（超 Student 限制） |
+| 最大偏斜度 | < 0.95 | 0.95–0.98 | > 0.98 |
+| 最小正交质量 | > 0.1 | 0.01–0.1 | < 0.01 |
+| 最小体积 | > 0 | — | 有负值（必须消除） |
+| 长宽比（主流区） | < 5:1 | — | — |
+| 残差（除能量） | < 1e-3 | 平 ≥50 步且有监测佐证 | 上升 / 跳数量级 |
+| 能量残差 | < 1e-6 | 同上 | 同上 |
+| **质量不平衡** | **< 0.5%** | 0.5–1% | **> 1%** |
+| 壁面 y+（壁面函数） | 30–300 | — | 5–30（缓冲区）或 <15 |
+| 壁面 y+（EWT / 低 Re） | ≈1（1–5） | — | > 5 |
+| SST 的 y+ | < 5（关键壁面） | > 5 且**近壁量非交付项** → minor + 登记风险 | > 5 且**近壁量是交付项**（见 §4 判定流程） |
+| 回流 | 无，或仅启动阶段 | 少量残留 | 持续到最终迭代 / 大面积 |
+
+⚠️ 表中未覆盖的项，去 §0 的官方链接查；查不到就写 `cannot_verify`。

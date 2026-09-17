@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Fluent 运行时产物
+runs/
+*.trn
+*.cas.h5
+*.dat.h5
+*.log
+
+# Fluent 的 .trn 临时文件落点（probe 脚本用 cwd 指到这里，别堆在项目根）
+.fluent-transcripts/
+
+# 本地覆盖
+.claude/settings.local.json
+
+# 本机专属接线 —— 里面的路径是绝对路径，换机器即失效。
+# 由 scripts/setup.py 按本机实际情况生成；模板见 .mcp.json.template。
+.mcp.json

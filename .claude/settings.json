@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL *)",
+      "Bash(curl -s *)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe scripts/*)",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -c ' *)",
+      "mcp__ansys-fluent-mcp__session_status",
+      "mcp__ansys-fluent-mcp__solver_status",
+      "mcp__ansys-fluent-mcp__summarize_setup",
+      "mcp__ansys-fluent-mcp__simulation_report",
+      "mcp__ansys-fluent-mcp__find_api",
+      "mcp__ansys-fluent-mcp__get_help",
+      "mcp__ansys-fluent-mcp__get_state",
+      "mcp__ansys-fluent-mcp__get_allowed_values",
+      "mcp__ansys-fluent-mcp__get_active_status",
+      "mcp__ansys-fluent-mcp__get_targeted_context",
+      "mcp__ansys-fluent-mcp__describe_path",
+      "mcp__ansys-fluent-mcp__describe_named_object_template",
+      "mcp__ansys-fluent-mcp__probe_path",
+      "mcp__ansys-fluent-mcp__list_named_objects",
+      "mcp__ansys-fluent-mcp__find_named_object",
+      "mcp__ansys-fluent-mcp__select_named_objects",
+      "mcp__ansys-fluent-mcp__mesh_quality",
+      "mcp__ansys-fluent-mcp__list_fields",
+      "mcp__ansys-fluent-mcp__validate_code",
+      "mcp__ansys-fluent-mcp__connect",
+      "mcp__ansys-fluent-mcp__disconnect",
+      "mcp__ansys-fluent-mcp__run_code",
+      "mcp__ansys-fluent-mcp__screenshot",
+      "Bash(tasklist //FI \"IMAGENAME eq Fluent.exe\")",
+      "Edit(/.claude/skills/fluent-cfd-pipeline/**)"
+    ],
+    "ask": [
+      "mcp__ansys-fluent-mcp__compare_files"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

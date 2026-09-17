@@ -1,0 +1,34 @@
+fluent-cfd-agent-pipeline
+Copyright 2026 D-3364
+
+本产品包含由 Apache 软件基金会开发的软件
+（"Apache License, Version 2.0"，见 LICENSE 文件）。
+
+────────────────────────────────────────────────────────────
+第三方依赖
+────────────────────────────────────────────────────────────
+
+本项目构建于 ANSYS 官方的 PyFluent MCP server 之上，并以**依赖**方式使用，
+未捆绑其源代码：
+
+  ansys-fluent-mcp      https://github.com/ansys/pyfluent-mcp      Apache-2.0
+  ansys-fluent-core     https://github.com/ansys/pyfluent          Apache-2.0
+  PyFluent / PyAnsys    https://github.com/ansys                    Apache-2.0
+
+本项目的参考文档（references/ 下）包含对上述软件**行为**的描述，
+以及为评论与说明目的而引用的少量原文片段（如帮助文本、错误码、参数名）。
+这些内容的著作权归其原作者所有。
+
+────────────────────────────────────────────────────────────
+商标
+────────────────────────────────────────────────────────────
+
+ANSYS、Fluent 及相关标识是 ANSYS, Inc. 的商标或注册商标。
+
+**本项目非 ANSYS 官方产物**，与 ANSYS, Inc. 及 Synopsys, Inc. 无隶属、
+赞助或背书关系。上述商标仅作**描述性**使用（指明本软件与哪种求解器配合工作）。
+
+使用本软件仍需自行取得 ANSYS Fluent 的合法许可证。本仓库不包含 Fluent，
+亦不提供任何绕过许可机制的手段。
+
+────────────────────────────────────────────────────────────

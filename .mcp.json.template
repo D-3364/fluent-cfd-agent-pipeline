@@ -1,0 +1,26 @@
+{
+  "_README": [
+    "这是 .mcp.json 的模板 —— 它不是配置文件，不要直接改它，也不要指望它生效。",
+    "真正的 .mcp.json 由 scripts/setup.py 生成（按本机实际情况填路径），且已被 .gitignore 排除。",
+    "",
+    "为什么这么做：.mcp.json 里的 command 和 PYFLUENT_FLUENT_ROOT 都是【机器专属的绝对路径】，",
+    "提交进版本控制既没意义（换台机器就失效），又会泄漏本机目录结构。",
+    "",
+    "拿到这个仓库后要做的：",
+    "    .venv/Scripts/python.exe scripts/setup.py --create-venv",
+    "然后【重载 Claude Code 会话】—— .mcp.json 只在会话启动时加载。",
+    "",
+    "下面尖括号里的是占位符，setup.py 会用本机检测到的真实值替换。"
+  ],
+  "mcpServers": {
+    "ansys-fluent-mcp": {
+      "type": "stdio",
+      "command": "<REPO_ROOT>/.venv/Scripts/ansys-fluent-mcp.exe",
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "FLUIDS_MCP_LOG_LEVEL": "INFO",
+        "PYFLUENT_FLUENT_ROOT": "<FLUENT_ROOT>"
+      }
+    }
+  }
+}

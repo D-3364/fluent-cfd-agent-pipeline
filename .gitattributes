@@ -1,0 +1,22 @@
+# 统一行尾。
+#
+# 本仓库此前的每次提交都刷 LF/CRLF 警告 —— 就是因为缺这个文件，
+# 行尾交给 core.autocrlf 隐式决定，跨平台协作会产生"整文件 diff"。
+
+# 一律按 LF 存储，检出时也保持 LF（源码与文档都不应依赖 CRLF）
+* text=auto eol=lf
+
+# 将来若加入 Windows 脚本，它们需要 CRLF —— 届时取消注释：
+# *.bat   text eol=crlf
+# *.cmd   text eol=crlf
+# *.ps1   text eol=crlf
+
+# 二进制：不做行尾转换，不参与文本 diff
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.gz    binary
+*.zip   binary
+*.h5    binary
+*.trn   binary
