@@ -18,3 +18,9 @@ runs/
 # 本机专属接线 —— 里面的路径是绝对路径，换机器即失效。
 # 由 scripts/setup.py 按本机实际情况生成；模板见 .mcp.json.template。
 .mcp.json
+
+# 同上，Codex 版。内容与 .mcp.json 等价（换成 TOML 格式），同样由 setup.py 生成。
+.codex/config.toml
+
+# 根目录下的第三方文档 —— 有版权，且与产品无关。要用请放在仓库外。
+/*.pdf

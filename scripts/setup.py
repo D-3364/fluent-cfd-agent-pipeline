@@ -53,6 +53,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 VENV_DIR = REPO_ROOT / ".venv"
 MCP_JSON = REPO_ROOT / ".mcp.json"
 MCP_TEMPLATE = REPO_ROOT / ".mcp.json.template"
+CODEX_CONFIG = REPO_ROOT / ".codex" / "config.toml"
 
 OK = "✓"
 NO = "✗"
@@ -153,6 +154,36 @@ def build_mcp_json(fluent_root: str | None) -> dict:
             }
         }
     }
+
+
+def build_codex_config(fluent_root: str | None) -> str:
+    """生成 .codex/config.toml —— 与 .mcp.json 等价的内容，换成 TOML 格式。
+
+    同样是**机器专属**的（里面有 venv 与本机 Fluent 的绝对路径），
+    所以和 .mcp.json 一样不入版本控制，由本脚本按本机生成。
+
+    路径用 TOML **字面量**字符串（单引号）—— Windows 路径里的反斜杠
+    在基本字符串（双引号）里需要转义，字面量里则原样保留。
+    """
+    def q(s: str) -> str:
+        if "'" in s:
+            raise SystemExit(f"✗ 路径含单引号，无法写进 TOML 字面量字符串：{s}")
+        return f"'{s}'"
+
+    lines = [
+        "# 由 scripts/setup.py 按本机生成，不要手工改，也不入版本控制。",
+        "# 与根目录的 .mcp.json 等价（那份是 JSON，这份是 TOML）。",
+        "",
+        "[mcp_servers.ansys-fluent-mcp]",
+        f"command = {q(str(venv_bin('ansys-fluent-mcp')))}",
+        "",
+        "[mcp_servers.ansys-fluent-mcp.env]",
+        'PYTHONIOENCODING = "utf-8"',
+        'FLUIDS_MCP_LOG_LEVEL = "INFO"',
+    ]
+    if fluent_root:
+        lines.append(f"PYFLUENT_FLUENT_ROOT = {q(fluent_root)}")
+    return "\n".join(lines) + "\n"
 
 
 def check() -> tuple[bool, list[str]]:
@@ -297,6 +328,12 @@ def main() -> int:
             print(f"  旧 command：{old_cmd}")
     MCP_JSON.write_text(json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"  {OK} 已写入 {MCP_JSON}")
+
+    # Codex 那份配置，内容等价、格式换成 TOML。同样是机器专属。
+    print("\n[写 .codex/config.toml]")
+    CODEX_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    CODEX_CONFIG.write_text(build_codex_config(root), encoding="utf-8")
+    print(f"  {OK} 已写入 {CODEX_CONFIG}")
 
     ok, msgs = check()
     print("\n[校验]")
