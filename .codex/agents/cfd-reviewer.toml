@@ -167,6 +167,31 @@ print('最终残差:', {k: v[-1] for k, v in d.items()})
 
 ---
 
+## ★ 先查有没有被作废的旧裁决混在证据里
+
+规范经过修订时（`02_spec.json` 的 `revision.version > 1`），`04_results/` 里可能
+**仍躺着按旧版判据算出的裁决** —— 它们不会自己更新，而且往往在 `scope` 字段里
+声称是按"当前 `02_spec.json`"评的，**那句话在规范改版后就是假的**。
+
+**开工先查这个**：
+
+```bash
+ls runs/<id>/04_results/_superseded_v*/ 2>/dev/null   # 执行方有没有正确隔离
+grep -l '"spec_revision"' runs/<id>/04_results/*.json  # 哪些文件带版本标记
+```
+
+**发现混在证据目录里的旧口径裁决时**：
+
+- **不要采信**，也不要因为它与你的结论矛盾就以为是自己错了
+- 在 `review_N.json` 里**显式指出**：哪个文件是旧口径、为什么作废、
+  你的裁决是按哪一版规范重判的
+- 若执行方**没有**隔离它们，把这写进 `feedback.instructions`
+
+> 一次真实运行就出现过：`04_results/summary.json` 判 `C3=FAIL`、`C8=NOT EVALUABLE`，
+> 而它们是 v1 口径（v1 下 C8 与 C3 绑定）。v2 已把 C8 解绑。**复审按 v2 重判为通过**，
+> 并在 `review_2.json` 里明确披露了这个差异 —— **那是正确的做法**，
+> 但文件本身仍留在原地，构成对后来读证据者的干扰。
+
 ## 输出
 
 按 `review-schema.md` 产出 `review_N.json`，写到 run 目录下。
