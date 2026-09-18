@@ -227,6 +227,35 @@ else:
 `server_info_file`，就一定新起一个进程。这就是为什么三个 agent 必须串行、
 且每次收尾要 `disconnect`。
 
+### ★ `processor_count` 默认 1 是坑 —— Student 许可允许 4 核
+
+上面的参数表里 `processor_count=1` 是 **PyFluent 的默认值**，不是推荐值。
+
+**ANSYS Student 允许 4 核**（见 `student-limits.md`）。用 1 核 =
+**白扔 4 倍速度**。
+
+一次真实运行实测：5 万单元、单核、3000 步 = **45 分钟**。
+同样的算例四核会快得多。
+
+```python
+connect(connect_kwargs={
+    "product_version": "26.1",
+    "ui_mode": "no_gui",
+    "precision": "double",
+    "processor_count": 4,        # ★ 用满 Student 允许的 4 核
+    "cwd": r"C:\fluent-scratch\<run-id>",
+})
+```
+
+**本项目脚本默认已改为 4**，可用环境变量覆盖：
+
+```bash
+set CFD_PROCESSOR_COUNT=8      # 非 Student 许可可以调大
+```
+
+> 注意：核数上限是**许可**约束。超过许可是硬失败，不是"慢一点"。
+> 见 `student-limits.md`。
+
 ### 取值约束（传错会 `invalid_launch_arguments`）
 
 - `dimension` — 接受 `2 / 3 / "2d" / "3d" / "2" / "3"`；**传布尔值会被拒**

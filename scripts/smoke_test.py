@@ -41,6 +41,10 @@ for _stream in (sys.stdout, sys.stderr):
 PRODUCT_VERSION = os.environ.get("CFD_PRODUCT_VERSION") or None
 DEFAULT_CASE = os.environ.get("CFD_DEFAULT_CASE")
 
+# Student 许可允许 4 核（见 references/student-limits.md）。默认用满 4 核 ——
+# 单核会让求解慢 4 倍，而这是**白送的**。非 Student 许可可用环境变量调大。
+CPU_COUNT = int(os.environ.get("CFD_PROCESSOR_COUNT", "4"))
+
 
 def step(n: int, total: int, msg: str) -> None:
     print(f"[{n}/{total}] {msg}", flush=True)
@@ -103,7 +107,7 @@ def main() -> int:
             dimension=dimension,
             ui_mode=args.ui_mode,
             precision="double",
-            processor_count=1,
+            processor_count=CPU_COUNT,
             start_transcript=True,
             start_timeout=args.timeout,
         )

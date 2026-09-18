@@ -25,6 +25,10 @@ from _mcp_env import mcp_env, require_ready, server_exe, utf8_streams  # noqa: E
 utf8_streams()
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Student 许可允许 4 核（见 references/student-limits.md）。默认用满 4 核 ——
+# 单核会让求解慢 4 倍，而这是**白送的**。非 Student 许可可用环境变量调大。
+CPU_COUNT = int(os.environ.get("CFD_PROCESSOR_COUNT", "4"))
 SERVER = server_exe()
 # 本项目【不附带】算例文件 —— 网格由使用者自己提供。
 # 用 --case 指定，或设环境变量 CFD_DEFAULT_CASE。
@@ -131,7 +135,7 @@ def main() -> int:
             "dimension": dim,
             "ui_mode": "no_gui",
             "precision": "double",
-            "processor_count": 1,
+            "processor_count": CPU_COUNT,
         }), 400)
 
         print("\n[3] 读网格（通过 run_code）")

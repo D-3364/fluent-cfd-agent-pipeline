@@ -40,6 +40,10 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Student 许可允许 4 核（见 references/student-limits.md）。默认用满 4 核 ——
+# 单核会让求解慢 4 倍，而这是**白送的**。非 Student 许可可用环境变量调大。
+CPU_COUNT = int(os.environ.get("CFD_PROCESSOR_COUNT", "4"))
 SCRATCH = REPO_ROOT / ".fluent-transcripts"
 
 # ─────────────────────────────────────────────────────────────────────
@@ -122,7 +126,7 @@ def main() -> int:
     SCRATCH.mkdir(parents=True, exist_ok=True)
     solver = pyfluent.launch_fluent(
         product_version=args.product_version, dimension=dimension,
-        ui_mode="no_gui", precision="double", processor_count=1,
+        ui_mode="no_gui", precision="double", processor_count=CPU_COUNT,
         cleanup_on_exit=True, cwd=str(SCRATCH),
     )
 

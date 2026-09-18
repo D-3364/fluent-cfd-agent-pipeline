@@ -146,6 +146,26 @@ tools: Read, Write, Glob, Grep, Bash, mcp__ansys-fluent-mcp__connect, mcp__ansys
 `describe_path(paths=[...])` 查。**`describe_path` 一次调用同时给出 active 状态、
 当前值、允许值、模板**，比来回查四次高效。
 
+### ★ 先确认核数 —— 这是白送的加速
+
+`connect` 的 `processor_count` **默认是 1**，而 ANSYS Student 允许 **4 核**。
+用 1 核等于白扔 4 倍速度。
+
+```
+connect(connect_kwargs={..., "processor_count": 4, "cwd": r"C:\fluent-scratch\<run-id>"})
+```
+
+一次真实运行实测：5 万单元、单核、3000 步 = **45 分钟**。别让这个数字重复。
+
+### ★ 分批跑，并盯住时间
+
+规范如果给了残差目标 `1e-6` 又只给 `max_iterations=3000`，**数学上就是必然跑满** ——
+因为两者不相称。遇到这种规范，**照做，但在汇报里指出**（那是规范侧的问题，
+交给审查环节）。
+
+开场先跑一小批（如 50 步）**实测每步耗时**，据此估算总时长。若估算远超预期，
+不要闷头跑完 —— 停下来汇报。
+
 ### 求解要能中途止损
 
 `iterate()` 会阻塞到算完。**不要一次提交超长迭代**，分批来：

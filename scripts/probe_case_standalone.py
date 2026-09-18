@@ -34,6 +34,10 @@ for _stream in (sys.stdout, sys.stderr):
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# Student 许可允许 4 核（见 references/student-limits.md）。默认用满 4 核 ——
+# 单核会让求解慢 4 倍，而这是**白送的**。非 Student 许可可用环境变量调大。
+CPU_COUNT = int(os.environ.get("CFD_PROCESSOR_COUNT", "4"))
+
 # ★ Fluent 会往**进程的当前工作目录**写 .trn 临时文件。不指定 cwd 的话，
 #   它们会堆在项目根目录里（实测发生过：根目录攒了 7 个 fluent-*.trn）。
 #   所以这里固定把 cwd 指到一个专用的、已被 .gitignore 忽略的目录。
@@ -223,7 +227,7 @@ def main() -> int:
         dimension=dimension,
         ui_mode="no_gui",
         precision="double",
-        processor_count=1,
+        processor_count=CPU_COUNT,
         cleanup_on_exit=True,
         cwd=str(SCRATCH),
     )
