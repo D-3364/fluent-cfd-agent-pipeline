@@ -19,7 +19,8 @@
 
 | 要做什么 | 去哪 |
 |---|---|
-| 跑一个 CFD 任务 | `/fluent-run`，或直接描述需求（skill 自动触发） |
+| 跑一个 CFD 任务（要独立审查） | `/fluent-run`，或直接描述需求（skill 自动触发） |
+| 跑一个 CFD 任务（探索式，不需审查） | `/fluent-quick` —— 单 agent，省 token，**但结果只有自己检查** |
 | 改流水线行为 / 调度逻辑 | `.claude/skills/fluent-cfd-pipeline/SKILL.md` |
 | 改某个 agent 的职责或工具集 | `.claude/agents/cfd-*.md` |
 | 查**实测过的**工具与 API 事实 | `references/mcp-tool-truths.md`（怎么跟 server 说话）、`references/solver-api-26.1.md`（怎么驱动求解） |

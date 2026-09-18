@@ -9,6 +9,23 @@
 那次运行里 executor 花了 26.5 分钟 / 250 次 tool call，绝大部分不在算流体，而在
 现场考古下面这些字段名和枚举值。它们是可固化的事实，不该每次运行都重新发现。
 
+> ### 这张表没覆盖到的，去查官方文档
+>
+> **本机安装目录里没有 Fluent 文档**（实测：`fluent/` 下无 `.chm`/`.pdf`，
+> 全安装只有通用帮助壳 `commonfiles/help/`）。ANSYS 已将 Fluent 文档改为在线。
+>
+> 在线入口（`curl` 可通，WebFetch 在本环境被拦截）：
+>
+> ```
+> https://ansyshelp.ansys.com/public/Views/Secured/corp/v261/en/flu_ug/flu_ug.html   ← User's Guide
+> https://ansyshelp.ansys.com/public/Views/Secured/corp/v261/en/flu_th/flu_th.html   ← Theory Guide
+> ```
+>
+> 更细的章节链接与引用规范见 `review-criteria.md` 的 §0「引用来源与可信度分级」。
+>
+> **遇到本表没写的路径/枚举，宁可查一次文档，也不要照记忆写。** 上面那 250 次
+> 考古就是这么做出来的。
+
 ---
 
 ## 1. ★★ 时间推进：MCP 帮助文本本身是错的
