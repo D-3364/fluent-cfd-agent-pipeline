@@ -37,10 +37,15 @@ argument-hint: <case文件路径> <需求描述>
 2. S1 派 `cfd-spec-author` 做只读勘察（完成后确认它已 `disconnect`）
 3. S2 派 `cfd-spec-author` 定规范，产出 `02_spec.json`
 4. **S3 停下来**，把关键物理设定摆给用户确认——这一步不能跳过
-5. S4 派 `cfd-executor` 求解并导出证据（完成后确认它已 `disconnect`）
-6. S5 派 `cfd-reviewer` 独立审查，产出 `review_N.json`
-7. 按 `route` 查表跳转，守住迭代上限
-8. S7 写 `report.md`
+5. **S3.5 派 `cfd-reviewer` 做规范预审**——只给 `02_spec.json` 和 `01_probe.json`，
+   明说"**求解前的预审，不要连 MCP、不要跑 Fluent**"。挑出判据不可达、
+   目标与上限不相称、模型与 Re 不匹配、BC 类型错、单位没依据等问题。
+   发现问题 **回 S2**（改完重走 S3 关卡）。
+   **这一步是求解前的最后一道闸，不能省** —— 它省下的是一次完整的白跑求解。
+6. S4 派 `cfd-executor` 求解并导出证据（完成后确认它已 `disconnect`）
+7. S5 派 `cfd-reviewer` 独立审查（模式 B：结果审查），产出 `review_N.json`
+8. 按 `route` 查表跳转，守住迭代上限
+9. S7 写 `report.md`
 
 若用户没给 case 路径，先问清楚再开始。
 
