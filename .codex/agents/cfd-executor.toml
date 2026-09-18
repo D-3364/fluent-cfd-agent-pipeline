@@ -274,6 +274,28 @@ run_code("solver.solution.run_calculation.iterate(iter_count=50)")
 
 **并在汇报里说明挪了哪些**，让审查者知道。
 
+### ★ 文件名是 `.json`，内容就必须是合法 JSON
+
+**实测发生过**：一个 `summary.json` 里写着
+
+```python
+"residual_targets": {e: 1e-06 for e in ["continuity", "x-velocity", ...]},
+```
+
+**那是 Python 的字典推导式，不是 JSON。** 后果：任何 `json.load` 都直接抛异常，
+而那个文件**正是审查者要读的证据**。而且它既不是合法 JSON、也不是合法 Python
+字面量（`ast.literal_eval` 同样失败）—— 两边都用不了。
+
+**写盘前自检**：
+
+```bash
+.venv/Scripts/python.exe -c "import json,sys; json.load(open(sys.argv[1],encoding='utf-8')); print('ok')" <文件>
+```
+
+**注意你不是在写 Python 文件**：`{k: v for k in ...}` 这类推导式、
+`True`/`False`/`None`（应为 `true`/`false`/`null`）、单引号字符串，
+在 `.json` 里都非法。
+
 ### 证据要导全
 
 `spec.exports` 里列的每一项都要产出。审查者**不连 MCP**，没落盘的东西它看不见。
