@@ -193,6 +193,31 @@ connect(connect_kwargs={..., "processor_count": 4, "cwd": r"C:\fluent-scratch\<r
 规范给残差目标 `1e-6` 又只给 `max_iterations=3000` 时，**数学上就是必然跑满**。
 这种情况**照做，但在汇报里明确指出** —— 那是规范侧的问题，归 `spec` 路由。
 
+### ★ 把判据设进 Fluent，让它自己停 —— 别用固定步数封顶
+
+**实测确认**：`iterate(iter_count=N)` 里的 N 是**上限不是任务量**。
+Fluent 每步都检查 `check_convergence`，残差达到 `absolute_criteria` 就打印
+`!   N solution is converged` 并停下。实测给 500 步额度、判据设 1e-2，
+**第 21 步就停了**。
+
+```python
+# 开算前先按规范把判据设进 Fluent
+r = solver.settings.solution.monitor.residual
+for eq in list(r.equations.get_state()):
+    r.equations[eq].absolute_criteria = <规范里的目标>
+solver.settings.solution.run_calculation.iterate(iter_count=<规范里的上限>)
+```
+
+**所以要检查一件事**：规范给的目标**够不够得到**？
+
+- 够得到 → Fluent 自己停，`iter_count` 只是保险丝
+- **够不到 → 提前停永不触发，`iter_count` 变成必然跑满的步数**
+
+**判断依据**：先跑几十步看残差趋势。若已在平台、且平台比规范目标高 2 个数量级以上，
+**目标就是够不到的** —— 这时按上面「先探 100 步」的做法停下来汇报。
+
+详见 `references/pyfluent-recipes.md` 的「`iterate` 会自己提前停」。
+
 ### 分批跑，并盯住时间
 
 开场先跑一小批**实测每步耗时**，据此估算总时长。若估算远超预期，

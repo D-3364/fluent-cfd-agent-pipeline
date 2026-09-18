@@ -270,6 +270,42 @@ solver.solution.run_calculation.iterate(iter_count=200)
 > **这一步会阻塞到算完**，没有流式进度。超长求解要考虑分批：
 > 多次 `run_code` 各算一段，中间读残差判断要不要继续。
 
+#### ★★ `iterate(iter_count=N)` 会自己提前停 —— 别把 N 当"必然跑满"
+
+**实测确认**（Fluent 26.1，2D 库埃特流）：
+
+```
+设 absolute_criteria = 1e-2，调用 iterate(iter_count=500)
+→ 控制台打印 "!   21 solution is converged"
+→ 第 21 步就停了，没有跑满 500
+```
+
+**所以 `iter_count` 是「上限」不是「固定步数」** —— Fluent 每步都检查
+`check_convergence`，达到 `absolute_criteria` 就停。
+
+**默认设置本来就是开着的**：
+
+```
+solution.monitor.residual.options.criterion_type = "absolute"
+solution.monitor.residual.equations["<eq>"].check_convergence = True
+solution.monitor.residual.equations["<eq>"].absolute_criteria = 0.001   ← 手册默认
+```
+
+```python
+# 按规范设判据 —— 判据【可达】，Fluent 就会自己停
+r = solver.settings.solution.monitor.residual
+for eq in list(r.equations.get_state()):
+    r.equations[eq].absolute_criteria = 1e-3      # 别设成够不到的值
+solver.settings.solution.run_calculation.iterate(iter_count=3000)   # 这是上限，不是任务量
+```
+
+> ⚠️ **反过来说**：判据若不可达，提前停**永远不会触发**，`iter_count` 就真的变成
+> 必跑满的步数。一次真实运行正是如此 —— 规范要求连续方程残差 `< 1e-6`，
+> 而实测平台在 **4.4e-2**（差 4 个数量级），于是 3000 步一步不少地跑完，
+> 耗时 45 分钟，最终残差还是没达标。
+>
+> **「设一个够得到的判据让它自己停」比「设一个够不到的目标然后封顶」好得多。**
+
 ### 中断（发现发散时）
 
 ```python
